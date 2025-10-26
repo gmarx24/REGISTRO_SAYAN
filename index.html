@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Vehículos</title>
+  <style>
+    body { background: #f3f4f6; font-family: Arial; text-align: center; padding: 20px; color: #222; }
+    h1 { color: #0a5c2d; margin-bottom: 10px; font-size: 2rem; }
+    p { margin-bottom: 15px; }
+    #reader { width: 100%; max-width: 400px; margin: 0 auto; border: 3px solid #0a5c2d; border-radius: 10px; overflow: hidden; }
+    #mensaje { margin-top: 20px; font-weight: bold; }
+    footer { margin-top: 40px; font-size: 0.9rem; color: #555; }
+  </style>
+</head>
+<body>
+  <h1>Consorcio Vías de Sayan</h1>
+  <p>📷 Escanee el código QR del vehículo</p>
+
+  <div id="reader"></div>
+  <p id="mensaje"></p>
+
+  <footer>© 2025 Marx Lenin Galán Galán</footer>
+
+  <!-- Librería para escanear QR -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <script>
+    // 🔹 REEMPLAZA con tu URL de Apps Script desplegada
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyraNwk4OeeIrXdaYiqluqp1h7qxfsqmI0F5kQ9-VxRuxWoMb1g9fe6hDrDFKNYVj-T/exec";
+
+    const mensaje = document.getElementById("mensaje");
+
+    function onScanSuccess(decodedText) {
+      mensaje.textContent = "📦 QR detectado, procesando...";
+      mensaje.style.color = "blue";
+
+      try {
+        const campos = decodedText.split(",");
+        if(campos.length !== 5) {
+          mensaje.textContent = "⚠️ QR inválido: debe contener 5 campos separados por comas";
+          mensaje.style.color = "red";
+          return;
+        }
+
+        const [codigo, placa, tipo_unidad, sub_contrata, operador] = campos;
+
+        const data = {
+          codigo: codigo.trim(),
+          placa: placa.trim(),
+          tipo_unidad: tipo_unidad.trim(),
+          sub_contrata: sub_contrata.trim(),
+          operador: operador.trim()
+        };
+
+        fetch(WEBAPP_URL, {
+          method: "POST",
+          body: JSON.stringify(data),
+          headers: { "Content-Type": "application/json" }
+        })
+        .then(res => res.json())
+        .then(result => {
+          if(result.ok) {
+            mensaje.textContent = "✅ Registro guardado correctamente";
+            mensaje.style.color = "green";
+          } else {
+            mensaje.textContent = "❌ Error al registrar: " + (result.error || "");
+            mensaje.style.color = "red";
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          mensaje.textContent = "⚠️ No se pudo conectar al servidor";
+          mensaje.style.color = "red";
+        });
+
+      } catch(error) {
+        mensaje.textContent = "⚠️ Error procesando el QR";
+        mensaje.style.color = "red";
+      }
+    }
+
+    function onScanError(err) {
+      console.warn("Error de escaneo:", err);
+    }
+
+    // Iniciar lector QR con cámara trasera preferida
+    const html5QrCode = new Html5Qrcode("reader");
+    Html5Qrcode.getCameras().then(devices => {
+      if(devices && devices.length) {
+        const backCamera = devices.find(d => d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("trasera"));
+        const cameraId = backCamera ? backCamera.id : devices[0].id;
+
+        html5QrCode.start(
+          cameraId,
+          { fps: 10, qrbox: 250 },
+          onScanSuccess,
+          onScanError
+        );
+      } else {
+        mensaje.textContent = "⚠️ No se detectó cámara";
+        mensaje.style.color = "red";
+      }
+    }).catch(err => {
+      mensaje.textContent = "⚠️ Error al acceder a la cámara";
+      mensaje.style.color = "red";
+      console.error(err);
+    });
+  </script>
+</body>
+</html>
